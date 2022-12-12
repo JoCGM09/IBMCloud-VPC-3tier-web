@@ -15,7 +15,7 @@ Features:
 
 ## PASO 1: Despliegue de la arquitectura VPC
 
-<p align="center"><img width="600" src="https://github.com/JoCGM09/IBMCloud-VPC-3tier-web/blob/master/Capturas%20VPC/infra2.png"></p>
+<p align="center"><img width="800" src="https://github.com/JoCGM09/IBMCloud-VPC-3tier-web/blob/master/Capturas%20VPC/infra2.png"></p>
 
 
 ## Componentes funcionales de la VPC
