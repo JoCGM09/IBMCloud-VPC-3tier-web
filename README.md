@@ -70,7 +70,7 @@ Los recursos serán asignados en este caso al grupo de recursos **VPC1**. Ademá
 
 Seleccione Infraestructura VPC desde el menú en la esquina superior izquierda.
 
-<p align="center"><img width="600" src="https://github.com/JoCGM09/IBMCloud-VPC-3tier-web/blob/master/Capturas%20VPC/infra1.png"></p>
+<p align="center"><img width="700" src="https://github.com/JoCGM09/IBMCloud-VPC-3tier-web/blob/master/Capturas%20VPC/infra1.png"></p>
 
 ## Crear una llave SSH
 
@@ -91,7 +91,7 @@ Para más información sobre prefijos de direcciones ingrese a [Understanding IP
 
 Se crearán los prefijos de direcciones para `10.10.11.0/24` y `10.10.12.0/24`. En el menú *Infraestructura VPC*, selecciona "VPCs" en "Red". Seleccione la VPC `webb-app-vpc` para obtener los detalles, luego seleccione "Prefijos de dirección" y "Crear", agregar la dirección mencionada y luego repetir el proceso para la segunda.
 
-<p align="center"><img width="600" src="https://github.com/JoCGM09/IBMCloud-VPC-3tier-web/blob/master/Capturas%20VPC/infra4.png"></p>
+<p align="center"><img width="700" src="https://github.com/JoCGM09/IBMCloud-VPC-3tier-web/blob/master/Capturas%20VPC/infra4.png"></p>
 
 ## Crear dos subredes en la VPC
 
@@ -149,7 +149,7 @@ Seleccione:
 - VPC = web-app-vpc.
 - Cambie `eth0` Network Interface para elegir `subnet2` y `data_sg`.
 
-<p align="center"><img width="600" src="https://github.com/JoCGM09/IBMCloud-VPC-3tier-web/blob/master/Capturas%20VPC/infra9.png"></p>
+<p align="center"><img width="700" src="https://github.com/JoCGM09/IBMCloud-VPC-3tier-web/blob/master/Capturas%20VPC/infra9.png"></p>
 
 Repetir el proceso para la segunda instancia.
 
@@ -171,7 +171,7 @@ Seleccionar:
 - Añade `eth1` Network Interface para elegir `subnet2` y `data_sg`.
 
 
-<p align="center"><img width="600" src="https://github.com/JoCGM09/IBMCloud-VPC-3tier-web/blob/master/Capturas%20VPC/infra10.png"></p>
+<p align="center"><img width="700" src="https://github.com/JoCGM09/IBMCloud-VPC-3tier-web/blob/master/Capturas%20VPC/infra10.png"></p>
 
 Repetir el proceso para la segunda instancia.
 
