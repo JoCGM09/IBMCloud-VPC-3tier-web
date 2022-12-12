@@ -36,8 +36,8 @@ Features:
 
 #### Hardware seleccionado
 
-- Servidor web de aplicación: bx2-4x16
-- Servidor de datos: bx2-4x16
+- Servidor web de aplicación: bx2-4x8
+- Servidor de datos: cx2-4x32
 
 ## Prerequisitos
 
@@ -93,106 +93,87 @@ Se crearán los prefijos de direcciones para `10.10.11.0/24` y `10.10.12.0/24`. 
 
 <p align="center"><img width="600" src="https://github.com/JoCGM09/IBMCloud-VPC-3tier-web/blob/master/Capturas%20VPC/infra4.png"></p>
 
-## Create Two VPC Subnets
+## Crear dos subredes en la VPC
 
-Create two VPC Subnets for ipv4-cidr-blocks `10.10.11.0/24` and `10.10.12.0/24`.  
+Se crearán dos subredes para los CIDR `10.10.11.0/24` y `10.10.12.0/24`. La capa de __*aplicación*__ usará la `subnet1` y la capa de __*datos*__ usará la `subnet2`.
 
-The __*application*__ tier will be `subnet1` and the __*data*__ tier will be `subnet2`.
-
-On the *VPC Infrastructure* menu, select "Subnets" and then click "Create +". Create each subnet and attach the VPC's public gateway.
+En el menú *Infraestructura VPC*, seleccione "Subredes" y, a continuación, haga clic en "Crear +". Cree cada subred y adjunte la puerta de enlace pública de la VPC.
 
 **Subnet1**
-![Create subnet1](images/subnet1.png)
+<p align="center"><img width="600" src="https://github.com/JoCGM09/IBMCloud-VPC-3tier-web/blob/master/Capturas%20VPC/infra5.png"></p>
 
 **Subnet2**
-![Create subnet2](images/subnet2.png)
+<p align="center"><img width="600" src="https://github.com/JoCGM09/IBMCloud-VPC-3tier-web/blob/master/Capturas%20VPC/infra6.png"></p>
 
-### VPC Subnets
+### Subredes VPC
 
-The initial status of a newly created subnet is set to __*pending*__.  You must wait until the subnet status is available before assigning any resources to it.
+El estado inicial de una subred recién creada es __*pendiente*__.  Debe esperar hasta que el estado de la subred esté disponible antes de asignarle recursos. Para comprobar el estado de la subred, actualice la lista de subredes.  Siga comprobando hasta que el estado sea disponible.
 
-To check the subnet status, refresh the Subnets list.  Keep checking until the status is set to available.
+## Security Groups y Access Control Lists
 
-![Check Subnet Status](images/subnets.png)
+Para los propósitos de este caso de uso, crearemos dos grupos de seguridad para los servidores de aplicaciones y de datos. Para obtener más información sobre los grupos de seguridad, consulte [Security in your IBM Cloud VPC](https://cloud.ibm.com/docs/vpc?topic=vpc-using-security-groups).
 
-### Optionally, Remove Original Subnet0
+En nuestro escenario configuraremos los grupos de seguridad para habilitar los puertos y protocolos requeridos.
+En el menú *Infraestructura VPC*, selecciona "Grupos de seguridad" y luego "Crear +".
 
-Creating a VPC requires a subnet (`subnet0`) that uses a default address prefix.  Since we will not be using the default address prefixes nor the initial subnet, those can be deleted. To delete `subnet0`, on the *VPC Infrastructure* menu, select "Subnets" and then the three periods (`...`) to select delete.
+**App Security Group - app-sg**
 
-![Delete Original Subnet](images/subnet0_del.png)
+- Añada una regla de entrada para permitir todos los accesos tcp en el puerto 22 para el acceso SSH a las VSI.
+- Añada una regla de entrada para permitir todos los accesos tcp en el puerto 80 para el acceso HTTP a la aplicación web.
+- Añada una regla de salida para permitir todos los accesos.
 
-## VPC Instance Profiles and Images
 
-Before continuing we must select an instance profile and image for our VPC instances.  
-- The profile describes the instance size in terms of CPUs and memory.
-- The image is the operating system that will be loaded into the instance.
+<p align="center"><img width="600" src="https://github.com/JoCGM09/IBMCloud-VPC-3tier-web/blob/master/Capturas%20VPC/infra7.png"></p>
 
-We will use the `b-4x16` balanced profile for all our instances, which is 4 CPUs and 16G of memory.  For OS image, the `ubuntu-18.04-amd64` which is Ubuntu Linux (18.04 LTS Bionic Beaver Minimal Install).
-
-## Security Groups and Access Control Lists
-
-For purposes of this use case, we will create two security groups for application and data servers. For more information on security groups, please refer to [Security in your IBM Cloud VPC](https://cloud.ibm.com/docs/vpc?topic=vpc-using-security-groups).
-
-In our scenario we will configure the security groups to enable the required ports and protocols.
-
-On the *VPC Infrastructure* menu, select "Security groups" and then "Create +".
-
-**Application Security Group - app-sg**
-
-- Add an inbound rule to allow all tcp access on port 22 for SSH access to the VSIs.
-- Add an inbound rule to allow all tcp access on port 80 for HTTP access to the web application.
-- Add an outbound rule to allow all access.
-
-![Application Security Group](images/appsg.png)
 
 **Data Security Group - data-sg**
 
-- Add an inbound rule to allow all tcp access on port 22 for SSH access to the VSIs.
-- Add an inbound rule to allow all tcp access on port 3306 for MySQL (default port for MySQL).
-- Add an outbound rule to allow all access.
+- Añada una regla de entrada para permitir todos los accesos tcp en el puerto 22 para el acceso SSH a las VSI.
+- Añada una regla de entrada para permitir todos los accesos tcp en el puerto 3306 para MySQL (puerto por defecto para MySQL).
+- Añada una regla de salida para permitir todos los accesos.
 
-![Data Security Group](images/datasg.png)
 
-## Create Data Tier VPC Instances - Subnet2
+<p align="center"><img width="600" src="https://github.com/JoCGM09/IBMCloud-VPC-3tier-web/blob/master/Capturas%20VPC/infra8.png"></p>
 
-Now we have all the required information, let's create two Ubuntu 18.04 VSIs in `subnet2` for the MySQL backend.
 
-On the *VPC Infrastructure* menu, select "Virtual server instances" under "Compute" and then "Create +".
+## Crear las VSI de la capa de datos - Subnet2
 
-Select:
-- Enter instance name (the UI does not allow upper case for resource names).
-- Select Ubuntu 18.04 image and balanced 4x16 profile.
-- SSH Key = `vpc-key`
-- Change `eth0` Network Interface to pick `subnet2` and `data_sg`.
+Ahora que tenemos toda la información necesaria, vamos a crear dos VSIs en `subnet2` para el backend MySQL. En el menú *Infraestructura VPC*, selecciona "Instancias de servidor virtual" en "Cómputo" y luego "Crear +".
 
-**Instance = MySQL1**
+Seleccione:
+- Región = Dallas
+- Zona = Dallas 2
+- Introduzca el nombre de la instancia (la interfaz de usuario no permite mayúsculas para los nombres de recursos).
+- Seleccione la imagen Ubuntu 18.04 y el perfil memory mx2-4x32.
+- Clave SSH = `añadir la clave ssh creada`.
+- VPC = web-app-vpc.
+- Cambie `eth0` Network Interface para elegir `subnet2` y `data_sg`.
 
-![Create MySQL1](images/mysql1.png)
+<p align="center"><img width="600" src="https://github.com/JoCGM09/IBMCloud-VPC-3tier-web/blob/master/Capturas%20VPC/infra9.png"></p>
 
-**Instance = MySQL2**
+Repetir el proceso para la segunda instancia.
 
-![Create MySQL2](images/mysql2.png)
 
-## Create Web and Application tier VPC instances - Subnet1
+## Crear las VSI de la capa de aplicación - Subnet1
 
-Next, create two Ubuntu VSIs in `subnet1` for the application tier.
+A continuación, cree dos VSIs Ubuntu en `subnet1` para el nivel de aplicación.
 
-In this case we will create a second ethernet interface to connect to resources in `subnet2` where MySQL servers will be located.
+En este caso crearemos una segunda interfaz ethernet para conectarnos a los recursos en `subnet2` donde estarán ubicados los servidores MySQL.
 
-Select:
-- Enter instance name (the UI does not allow upper case for resource names).
-- Select Ubuntu 18.04 image and balanced 4x16 profile.
-- SSH Key = `vpc-key`
-- Change `eth0` Network Interface to pick `subnet1` and `app_sg`.
-- Add `eth1` Network Interface to pick `subnet2` and `data_sg`.
+Seleccionar:
+- Región = Dallas
+- Zona = Dallas 2
+- Introduzca el nombre de la instancia (la interfaz de usuario no permite mayúsculas para los nombres de recursos).
+- Seleccione la imagen Ubuntu 18.04 y el perfil compute c2-4x8.
+- Clave SSH = `añadir la clave ssh creada`.
+- VPC = web-app-vpc.
+- Cambie la interfaz de red `eth0` para elegir `subnet1` y `app_sg`.
+- Añade `eth1` Network Interface para elegir `subnet2` y `data_sg`.
 
-**Instance = AppServ1**
 
-![Create AppServ1](images/appserv1.png)
+<p align="center"><img width="600" src="https://github.com/JoCGM09/IBMCloud-VPC-3tier-web/blob/master/Capturas%20VPC/infra10.png"></p>
 
-**Instance = AppServ2**
-
-![Create AppServ2](images/appserv2.png)
+Repetir el proceso para la segunda instancia.
 
 ## Create Web Tier VPC Instance
 
