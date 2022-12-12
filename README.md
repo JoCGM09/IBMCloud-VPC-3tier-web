@@ -15,7 +15,7 @@ Features:
 
 ## PASO 1: Despliegue de la arquitectura VPC
 
-########################### imagen de la arquitectura ##########################################
+<p align="center"><img width="600" src="https://github.com/JoCGM09/IBMCloud-VPC-3tier-web/blob/master/Capturas%20VPC/infra2.png"></p>
 
 
 ## Componentes funcionales de la VPC
@@ -26,8 +26,8 @@ Features:
 - Instancias de servidores virtuales (VSI)
 - Múltiples interfaces de red en la VSI
 - Balanceador de carga a nivel de aplicación
-- IPv4 flotante
-- Public Gateway
+- IPv4 flotantes (solo para configuración)
+- Public Gateway (solo para configuración)
 
 ### Sistemas operativos utilizados
 
@@ -66,37 +66,32 @@ Ingresa en tu navegador https://cloud.ibm.com/login e inicia sesión.
 
 Los recursos serán asignados en este caso al grupo de recursos **VPC1**. Además serán alojadas en la región Dallas (*us-south*) y en la zona de disponibilidad *Dallas 1*. Para mayor información ingresar a [Creating a VPC in a different region](https://cloud.ibm.com/docs/vpc?topic=vpc-creating-a-vpc-in-a-different-region).
 
-Seleccione Infraestructura VPC desde el menú en la esquina superior izquierda.
-
-![VPC Infrastructure](images/hamburgermenu.png)
-
 ## Deploy VPC Infrastructure
 
-## Create an SSH Key
+Seleccione Infraestructura VPC desde el menú en la esquina superior izquierda.
 
-An SSH key is required when creating a VPC instance. From the VPC Infrastructure menu select "SSH keys" and then "Create +".  Enter name, select region (e.g. Dallas) and add the contents of your RSA public key. Hit the "Add SSH key" button to save.
+<p align="center"><img width="600" src="https://github.com/JoCGM09/IBMCloud-VPC-3tier-web/blob/master/Capturas%20VPC/infra1.png"></p>
 
-![SSH Key](images/sshkey.png)
+## Crear una llave SSH
 
-## Create a VPC
+Al crear una instancia de VPC se necesita una clave SSH. En el menú Infraestructura VPC, seleccione "SSH Keys" y "Crear +".  Introduzca el nombre, seleccione la región (por ejemplo, Dallas) y añada el contenido de su clave pública RSA (el contenido se ubica en el la carpeta .ssh donde fue generada la llave). Pulsa el botón "Añadir clave SSH" para guardar.
 
-Create a VPC named `wp-vpc`.
+## Crea una VPC
 
-On the *VPC Infrastructure* menu, select "VPCs" under "Network.". Then select "Create +". Fill out the form and hit the "Create virtual private cloud" button.
+Crea la VPC llamada `web-app-vpc`.
 
-Use `subnet0` for subnet and **attach** a Public Gateway. The public gateway will be needed to access the application software from the public repositories.
+En el menú *Infraestructura VPC*, seleccione "VPCs" en "Red". A continuación, seleccione "Crear +". Ingrese la ubicación de la VPC, nombre, grupo de recursos.
+**Deseleccionar** la casilla de `crear por defecto un prefijo para cada zona` y pulse el botón "Crear nube privada virtual".
 
-![Create VPC](images/VPC.png)
+<p align="center"><img width="600" src="https://github.com/JoCGM09/IBMCloud-VPC-3tier-web/blob/master/Capturas%20VPC/infra3.png"></p>
 
-## Create Address Prefixes
+## Crear los prefijos de direcciones (CIDR)
 
-For more information on address prefixes, please refer to [Understanding IP address ranges, address prefixes, regions, and subnets](https://cloud.ibm.com/docs/vpc?topic=vpc-vpc-addressing-plan-design).
+Para más información sobre prefijos de direcciones ingrese a [Understanding IP address ranges, address prefixes, regions, and subnets](https://cloud.ibm.com/docs/vpc?topic=vpc-vpc-addressing-plan-design).
 
-Create address prefixes for `10.10.11.0/24` and `10.10.12.0/24`.
+Se crearán los prefijos de direcciones para `10.10.11.0/24` y `10.10.12.0/24`. En el menú *Infraestructura VPC*, selecciona "VPCs" en "Red". Seleccione la VPC `webb-app-vpc` para obtener los detalles, luego seleccione "Prefijos de dirección" y "Crear", agregar la dirección mencionada y luego repetir el proceso para la segunda.
 
-On the *VPC Infrastructure* menu, select "VPCs" under "Network.". Select VPC `wp-vpc` to get the details, then select "Address prefixes" and "Create".
-
-![Address Prefixes](images/addressprefixes.png)
+<p align="center"><img width="600" src="https://github.com/JoCGM09/IBMCloud-VPC-3tier-web/blob/master/Capturas%20VPC/infra4.png"></p>
 
 ## Create Two VPC Subnets
 
