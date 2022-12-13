@@ -181,25 +181,13 @@ In this section we will create and configure a VPC load balancer for the web app
 
 ### Create the Load Balancer
 
-On the *VPC Infrastructure* menu, select "Load balancers" and then "New load balancer".
+En el menú *infraestructura VPC*, selecciona "Balanceadores de carga" y luego "Nuevo balanceador de carga".
 
-Create a `public` load balancer `LB1` on `subnet1`. Configuring the load balancer involves creating a pool, pool members (application servers), and a listener that points to our application servers.
+Cree un balanceador de carga `público` `lb-web-app` en `subred1`. Configurar el balanceador de carga implica crear un pool, miembros del pool (servidores de aplicación), y un listener que apunte a nuestros servidores de aplicación.
 
 **Load Balancer = LB1**
 
-Select:
-- Enter instance name (the UI does not allow upper case for resource names).
-- Resource Group = `VPC1`
-- Type = `Public`
-- Select `subnet1` (10.10.11.0/24)
-- Back-end pool:
-   - Add a Back-end pool `pool1` for `http` protocol using a `round-robin` method and health checks every `20 seconds`.
-   ![Create Pool1](images/backendpool.png)
-   - Attach `AppServ1` and `AppServ2`
-   ![Create Pool Member](images/attachinstance.png)
-- Front-end listener
-   - Add a public front-end `http` listener for our web application using port `80` and assign it to back-end pool `pool1`
-   ![Create Listener](images/listener.png)
+
 
 ![Create Load Balancer](images/lb1.png)
 
