@@ -66,7 +66,7 @@ Ingresa en tu navegador https://cloud.ibm.com/login e inicia sesión.
 
 Los recursos serán asignados en este caso al grupo de recursos **VPC1**. Además serán alojadas en la región Dallas (*us-south*) y en la zona de disponibilidad *Dallas 1*. Para mayor información ingresar a [Creating a VPC in a different region](https://cloud.ibm.com/docs/vpc?topic=vpc-creating-a-vpc-in-a-different-region).
 
-## Deploy VPC Infrastructure
+## Desplegar la infraestructura VPC
 
 Seleccione Infraestructura VPC desde el menú en la esquina superior izquierda.
 
@@ -175,108 +175,71 @@ Seleccionar:
 
 Repetir el proceso para la segunda instancia.
 
-## Create Web Tier VPC Instance
+### Crear el balanceador de carga de aplicación
 
-In this section we will create and configure a VPC load balancer for the web application tier. For more information on configuration of load Balancers (listeners, back-end pools, etc.) see [Using Load Balancers for VPC](https://cloud.ibm.com/docs/vpc?topic=vpc-nlb-vs-elb)
-
-### Create the Load Balancer
+Para más información sobre la configuración de un balanceador de carga (listeners, back-end pools, etc.) ver [Using Load Balancers for VPC](https://cloud.ibm.com/docs/vpc?topic=vpc-nlb-vs-elb)
 
 En el menú *infraestructura VPC*, selecciona "Balanceadores de carga" y luego "Nuevo balanceador de carga".
 
 Cree un balanceador de carga `público` `lb-web-app` en `subred1`. Configurar el balanceador de carga implica crear un pool, miembros del pool (servidores de aplicación), y un listener que apunte a nuestros servidores de aplicación.
 
-**Load Balancer = LB1**
+**Load Balancer = lb-web-app**
+
+Seleccionar:
+- Introduzca el nombre de la instancia (la interfaz de usuario no permite el uso de mayúsculas en los nombres de recursos).
+- Tipo = `Público`.
+- Seleccione `subred1` (10.10.11.0/24)
+- Grupo back-end:
+   - Añade un pool de back-end `pool1` para el protocolo `http` utilizando un método `round-robin` y comprobaciones de estado cada `20 segundos`.
+   - Adjuntar `AppServ1` y `AppServ2`.
+
+<p align="center"><img width="700" src="https://github.com/JoCGM09/IBMCloud-VPC-3tier-web/blob/master/Capturas%20VPC/infra11.png"></p>
+
+- Receptor front-end:
+   - Añade un listener público `http` para nuestra aplicación web usando el puerto `80` y asígnalo al pool de back-end `pool1`.
+
+<p align="center"><img width="700" src="https://github.com/JoCGM09/IBMCloud-VPC-3tier-web/blob/master/Capturas%20VPC/infra12.png"></p>
+
+**Notas**: Mantener el grupo de seguridad por defecto de la VPC. Las comprobaciones de estado (health checks) del balanceador de carga fallarán hasta que la aplicación sea instalada más adelante
+
+## Preparar el balanceador de carga de aplicación
+
+Dado que no se admiten imágenes personalizadas (Bring-Your-Own-Image), habilitaremos el acceso a Internet para cada instancia de VPC para poder descargar el software de aplicación necesario. Dado que las VSI están aisladas de Internet, se utilizará una IP flotante para obtener acceso temporalmente. Una vez instalado el software de aplicación, se desactivará el acceso a Internet.
+
+**Añadir IP Pública a cada servidor de Datos y Aplicación**
+
+En el menú *Infraestructura VPC*, selecciona "Instancias de servidor virtual" y luego selecciona un servidor para ver los detalles. En "Interfaces de red" haga clic en el icono del lápiz para editarlo en eth0 y seleccione "Reservar una nueva IP flotante" en Dirección IP flotante.
 
 
+**Web-server**
 
-![Create Load Balancer](images/lb1.png)
+<p align="center"><img width="700" src="https://github.com/JoCGM09/IBMCloud-VPC-3tier-web/blob/master/Capturas%20VPC/infra12.png"></p>
 
-**Note**: Load Balancer health checks will fail until the application is installed in section [Install and Configure Application Software](WebApp.md).
-
-## Prepare to Load Application Software
-
-Because custom images are not supported (Bring-Your-Own-Image), we will enable access to the internet for each VPC instance so we can download the required application software. Since the VSIs are isolated from the internet, a floating IPs will be used to temporarily gain access. Once the application software has been installed, internet access will be disabled.
-
-**Add Public IP to each Data and Application servers**
-
-On the *VPC Infrastructure* menu, select "Virtual server instances" and then select one server to drill down to the details. Under "Network interfaces" click the pencil icon to edit it on eth0 and select "Reserve a new floating IP" at Floating IP address.
-
-**AppServ1**
-
-![AppServ1 FIP](images/appserv1fip.png)
-
-**AppServ2**
-
-![AppServ2 FIP](images/appserv2fip.png)
-
-**MySQL1**
-
-![MySQL1 FIP](images/mysql1fip.png)
-
-**MySQL2**
-
-![MySQL2 FIP](images/mysql2fip.png)
-
-## Next Step
-
-At this point the VPC infrastructure components are ready for the next step which is to deploy the application software to the VSIs and test the Load Balancer. Please go to [Install and Configure Application Software](WebApp.md) for the next steps.
-
-## Remove Floating IPs
-
-Once the environment is up and running, you can remove the floating IPs to remove public access on the VSIs.
-
-On the *VPC Infrastructure* menu, select "Virtual server instances" and then select one server to drill down to the details. Under "Network interfaces" select the `minus` sign on `eth0` to remove a Floating IP.
-
-Optionally, once the Floating IPs have been removed, you can also release the Floating IPs if there is no longer a need for them.
-
-On the *VPC Infrastructure* menu, select "Virtual server instances" and then select one server to drill down to the details. Under "Network interfaces" select the `minus` sign on `eth0` to remove a Floating IP.
+Repetir el mismo proceso para web-server-2 únicamente en la interfaz eth0. Luego repetir el proceso con db-server y sb-server-2.
 
 
+## PASO 2: Instalación de las aplicaciones web
 
 
+## PASO 3: Remover las IP flotanes
+
+Una vez que el entorno esté en funcionamiento, puede eliminar las IP flotantes para eliminar el acceso público en las VSI.
+
+En el menú *Infraestructura VPC*, selecciona "Instancia de servidor virtual" y luego selecciona un servidor para ver los detalles. En "Interfaz de red" seleccione el signo `menos` en `eth0` para eliminar una IP flotante.
+
+Opcionalmente, una vez que las IPs Flotantes han sido eliminadas, también puedes liberar las IPs Flotantes si ya no hay necesidad de ellas.
+
+En el menú *VPC Infrastructure*, selecciona "Virtual server instances" y luego selecciona un servidor para ver los detalles. En "Network interfaces" selecciona el signo `minus` en `eth0` para eliminar una IP Flotante.
 
 
+## Referencias
 
+- [Getting started with IBM Cloud Virtual Private Cloud](https://cloud.ibm.com/docs/vpc)
 
+- [Assigning role-based access to VPC resources](https://cloud.ibm.com/docs/resources?topic=resources-rgs#rgs)
 
+- [IBM Cloud CLI for VPC Reference](https://cloud.ibm.com/docs/vpc?topic=vpc-infrastructure-cli-plugin-vpc-reference)
 
+- [VPC API](https://cloud.ibm.com/apidocs/vpc)
 
-
-
-
-
-
-
-
-
-
-
-
-
-### Instalación de la aplicación web
-
-Deploy the application once the VPC infrastructure has been deployed.
-
-[Install Application Layer](WebApp.md)
-
-## Error Scenarios
-
-Application layer failures are included during the deployment and test of the software stack. No infrastructure failures were introduced.
-
-## Documentation Provided
-
-Useful links for VPC documentation.
-
-[Getting started with IBM Cloud Virtual Private Cloud](https://cloud.ibm.com/docs/vpc)
-
-[Assigning role-based access to VPC resources](https://cloud.ibm.com/docs/resources?topic=resources-rgs#rgs)
-
-[IBM Cloud CLI for VPC Reference](https://cloud.ibm.com/docs/vpc?topic=vpc-infrastructure-cli-plugin-vpc-reference)
-
-[VPC API](https://cloud.ibm.com/apidocs/vpc)
-
-
-
-Referencias
-
-Based on [Solution Tutorials - Highly Available & Scalable Web App](https://cloud.ibm.com/docs/tutorials?topic=solution-tutorials-highly-available-and-scalable-web-application#use-virtual-servers-to-build-highly-available-and-scalable-web-app)
+- [Solution Tutorials - Highly Available & Scalable Web App](https://cloud.ibm.com/docs/tutorials?topic=solution-tutorials-highly-available-and-scalable-web-application#use-virtual-servers-to-build-highly-available-and-scalable-web-app)
