@@ -213,7 +213,7 @@ En el menú *Infraestructura VPC*, selecciona "Instancias de servidor virtual" y
 
 **Web-server**
 
-<p align="center"><img width="700" src="https://github.com/JoCGM09/IBMCloud-VPC-3tier-web/blob/master/Capturas%20VPC/infra12.png"></p>
+<p align="center"><img width="700" src="https://github.com/JoCGM09/IBMCloud-VPC-3tier-web/blob/master/Capturas%20VPC/infra13.png"></p>
 
 Repetir el mismo proceso para web-server-2 únicamente en la interfaz eth0. Luego repetir el proceso con db-server y sb-server-2.
 
