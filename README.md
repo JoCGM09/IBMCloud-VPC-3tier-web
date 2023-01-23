@@ -220,6 +220,77 @@ Repetir el mismo proceso para web-server-2 únicamente en la interfaz eth0. Lueg
 
 ## PASO 2: Instalación de las aplicaciones web
 
+## Instalar MySQL
+
+Comenzamos desplegando el entorno de la base de datos de la aplicación Wordpress, Instsalamos MySQL en cada servidor de base de datos y creamos la base de datos de Wordpress.
+
+Nos conectamos a la instancia de base de datos 1 por SSH usando la dirección IP flotante y la llave privada que colocamos a la instancia.
+
+```
+ssh -i "su llave privada" root@"ip pública"
+```
+### Actualizar el entorno Linux 
+
+Actualizar el entorno usando los comandos: 
+
+```
+apt-get update
+apt-get upgrade
+```
+
+
+
+
+
+### Instalamos los paquetes de MySQL
+
+Instalamos MySQL. Ingresa a [MySQL](https://www.mysql.com/)para mayor información.
+```
+apt-get -y install mysql-server php-mysql
+```
+**Nota**: Si la instalación responde con un `groot` error, sigue las siguientes instrucciones: [Error: groot must be grub root device on ubuntu](https://developer.ibm.com/answers/questions/462237/error-groot-must-be-grub-root-device-on-ubuntu/)
+
+### Agrega seguridad a tus aplicaciones de MySQL
+
+El paquete del servidor MySQL viene con un script llamado `mysql_secure_installation` que puede realizar varias operaciones relacionadas con la seguridad. Ejecute el siguiente comando para establecer la contraseña de la base de datos y permitir que el usuario `root` se conecte desde un servidor remoto. Para obtener más información, consulte [Improve MySQL Installation Security](https://dev.mysql.com/doc/refman/5.7/en/mysql-secure-installation.html)
+
+primero ejecute el comando mysql
+
+```
+mysql
+```
+luego una vez se encuentre en la interfaz de mysql, use el siguiente comando para establecer su nueva contraseña para el usuario root, en este caso será mysqlpass.
+
+```
+mysql> ALTER USER 'root'@'localchost' IDENTIFIED WITH mysql_native_password by 'mysqlpass';
+```
+luego salga de la interfaz con el comando exit
+
+```
+mysql> exit
+Bye
+```
+Ahora corra el comando `mysql_secure_installation` e ingrese la nueva contraseña de acceso, luego responda las siguientes alternativas para una configuración segura sugerida, puede ser considerada bajo su criterio.
+
+```
+mysql_secure_installation
+```
+Respuestas para esta instalación:
+
+- Responda `n` cuando se le solicite configurar *VALIDATE PASSWORD PLUGIN*.
+- Responda `n` cuando se le solicite cambiar la contraseña actual.
+- Responda `y` para eliminar usuarios anónimos.
+- Responda `n` para no permitir el inicio de sesión de raíz de forma remota.
+- Responda `y` para eliminar la base de datos de prueba.
+- Responda `y` para recargar las tablas de privilegios.
+
+
+
+
+
+
+
+
 
 ## PASO 3: Remover las IP flotanes
 
