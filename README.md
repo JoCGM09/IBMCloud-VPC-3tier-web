@@ -285,8 +285,102 @@ Respuestas para esta instalación:
 - Responda `y` para recargar las tablas de privilegios.
 
 
+### Crear base de datos de aplicaciones
 
+Ahora crearemos una base de datos para la aplicación `WordPress`.
 
+**Iniciar sesión en MySQL**
+```
+mysql -u root -p
+```
+**Crear la base de datos `wordpress`**
+```
+mysql> CREATE DATABASE wordpress;
+```
+Resultado
+```
+Query OK, 1 row affected (0.01 sec)
+```
+
+**Garantizar privilegios del usuario `root`**
+Revisar [GRANT Syntax](https://dev.mysql.com/doc/refman/8.0/en/grant.html).
+```
+mysql> CREATE USER wordpress@localhost IDENTIFIED BY 'root';
+```
+Resultado
+```
+Query OK, 0 rows affected, 1 warning (0.00 sec)
+```
+```
+mysql> GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, ALTER ON wordpress.* TO wordpress@localhost;
+```
+Resultado
+```
+Query OK, 0 rows affected, 1 warning (0.00 sec)
+```
+**Nota importante** Si se utiliza en un entorno de producción, se recomienda utilizar un usuario con privilegios limitados y no utilizar root. Es recomendable no utilizar contraseñas simples o fácilmente adivinables para proteger la seguridad de la base de datos. Por tanto, es recomendable revisar los permisos necesarios para el usuario y asegurar que no se está otorgando un acceso excesivo.
+
+**Recargar las grant tables**
+```
+FLUSH PRIVILEGES;
+```
+Resultado
+```
+Query OK, 0 rows affected (0.00 sec)
+```
+**Listar bases de datos disponibles**
+```
+show databases;
+```
+Resultado
+```
++--------------------+
+| Database           |
++--------------------+
+| information_schema |
+| mysql              |
+| performance_schema |
+| sys                |
+| wordpress          |
++--------------------+
+5 rows in set (0.00 sec)
+```
+**Cerrar MySQL**
+```
+exit
+```
+Resultado
+```
+Bye
+```
+
+**Nota**: En cualquier momento del proceso de instalación de WordPress, puede repetir la creación de la base de datos de WordPress eliminándola (utilice `DROP DATABASE wordpress;`) y repitiendo los pasos anteriores para volver a crearla.
+
+### Hacer el servidor MySQL visible a través de la red
+
+Edita `/etc/mysql/my.cnf` y agrega estas líneas:
+```
+[mysqld]
+bind-address    = 0.0.0.0
+```
+**Reinicia MySQL**
+```
+systemctl restart mysql
+```
+**Validar que MYSQL esté listo**
+
+Confirme que MySQL está escuchando en todas las interfaces ejecutando el siguiente comando.
+```
+apt install net-tools
+netstat --listen --numeric-ports | grep 3306
+```
+Resultado:
+```
+tcp        0      0 localhost:3306          0.0.0.0:*               LISTEN
+tcp        0      0 localhost:33060         0.0.0.0:*               LISTEN
+```
+**Salir del servidor `MySQL1`**
+Cerrar sesión de la VSI usando el comando `exit`. 
 
 
 
