@@ -773,13 +773,13 @@ La replicación de bases de datos MySQL permite que los datos de un servidor de 
 
 La replicación es asíncrona por defecto; las bases de datos réplica no necesitan estar conectadas permanentemente para recibir actualizaciones de la base de datos origen. Dependiendo de la configuración, puede replicar todas las bases de datos, bases de datos seleccionadas o incluso tablas seleccionadas dentro de una base de datos.
 
-En nuestro escenario, configuraremos `MySQL2` como **base de datos réplica** de `MySQL1` como **base de datos fuente** para permitir la escalabilidad de la solución.
+En nuestro escenario, configuraremos `database 2` como **base de datos réplica** de `database 1` como **base de datos fuente** para permitir la escalabilidad de la solución.
 
-### Configurar MySQL1 - Maestro
+### Configurar MySQL1 - master
 
 Conéctese al servidor MySQL1 usando la dirección ip flotante reservada.
 ```
-$ ssh root@169.61.244.78
+ssh -i "su llave privada" root@"ip pública"
 ```
 
 Edita el fichero de configuración de MySQL `/etc/mysql/my.cnf` y añade lo siguiente al grupo `[mysqld]` para configurarlo como base de datos origen.
@@ -796,12 +796,558 @@ Reiniciar MySQL.
 ```
 systemctl restart mysql
 ```
+Prepare la base de datos fuente.  Esto requerirá dos sesiones ssh separadas a `MySQL1`.  En la primera sesión ssh
+configure la base de datos fuente MySQL.
 
+Inicie sesión en MySQL
+```
+mysql -u root -p
+```
+Necesitamos conceder privilegios a la réplica. El siguiente comando establecerá el nombre de usuario y la contraseña de la base de datos réplica:
 
+   - GRANT REPLICATION SLAVE ON *.* TO `'slave_user'`@'%' IDENTIFIED BY `'password'`;
 
+En nuestro caso, `slave_user` será `root` y `password` será `mysqlpass`.
+```
+GRANT REPLICATION SLAVE ON *.* TO 'root'@'%' IDENTIFIED BY 'mysqlpass';
+```
+Resultado
+```
+Query OK, 0 rows affected (0.01 sec)
+```
+Recargar tablas de subvenciones.
+```
+FLUSH PRIVILEGES;
+```
+Resultado
+```
+Query OK, 0 rows affected (0.01 sec)
+```
+Accede a la base de datos `wordpress`.
+```
+USE wordpress;
+```
+Resultado
+```
+Reading table information for completion of table and column names
+You can turn off this feature to get a quicker startup with -A
 
+Database changed
+```
+Bloquear base de datos para evitar cambios.
+```
+FLUSH TABLES WITH READ LOCK;
+```
+Resultado
+```
+Query OK, 0 rows affected (0.00 sec)
+```
+Mostrar estado
+```
+SHOW MASTER STATUS;
+```
+Verás algo como esto:
+```
++------------------+----------+--------------+------------------+-------------------+
+| File             | Position | Binlog_Do_DB | Binlog_Ignore_DB | Executed_Gtid_Set |
++------------------+----------+--------------+------------------+-------------------+
+| mysql-bin.000003 |     6941 | wordpress    |                  |                   |
++------------------+----------+--------------+------------------+-------------------+
+1 row in set (0.00 sec)
+```
+Esta es la `posición` desde la que la réplica de la base de datos empezará a replicar. Anote tanto el nombre del fichero como la posición. Estos serán necesarios más tarde cuando configure el nodo `replica`.
 
+**Nota:** Si realiza algún cambio en la ventana SSH actual, la base de datos se desbloqueará automáticamente. Por esta razón, deberías abrir una nueva sesión ssh a MySQL1 y continuar con los siguientes pasos allí.
 
+**En la segunda ventana SSH**,
+
+**Nota**: El volcado de la base de datos no es necesario si se empieza con una base de datos vacía (sin tablas, sin datos). Omitir para desbloquear las tablas.
+
+Introduzca lo siguiente en la línea de comandos bash (no en la línea de comandos mysql). Esto generará un volcado de base de datos de `wordpress` en el directorio actual (`wordpress.sql`).
+```
+mysqldump -u root -p --opt wordpress > wordpress.sql
+```
+
+Ahora, vuelve a tu sesión SSH original y desbloquea la base de datos (haciéndola escribible de nuevo).
+```
+UNLOCK TABLES;
+```
+Resultado
+```
+Query OK, 0 rows affected (0.00 sec)
+```
+Salir del comando shell `mysql`.
+```
+SALIR;
+```
+Resultado
+```
+Bye
+```
+En este momento se completa la configuración de la base de datos `source`.
+
+### Configurar MySQL2 - Slave
+
+Necesitamos obtener `wordpress.sql` de `database 1` a `database 2`. Para ello, tendremos que extraer el archivo de `database 1` a su sistema local y luego empujarlo a `database 2`.
+
+Desde tu sistema local, extrae el fichero de `database 1`.
+```
+scp root@169.61.244.78:wordpress.sql .
+```
+Resultado
+```
+wordpress.sql 100% 93KB 591.1KB/s 00:00
+```
+Ahora envíalo a `MySQL2`.
+```
+scp wordpress.sql root@169.61.244.62:wordpress.sql
+```
+Resultado
+```
+wordpress.sql                                 100%   93KB 425.4KB/s   00:00
+```
+
+Conéctate al servidor `database 2` usando la dirección ip flotante reservada.
+```
+$ ssh root@169.61.244.62
+```
+Importa la base de datos que previamente has exportado desde la base de datos `source` (`database 1`).
+```
+mysql -u root -p wordpress < wordpress.sql
+```
+Ahora puedes validar que la base de datos ha sido importada accediendo a MySQL y listando las tablas de la base de datos `wordpress`.
+Iniciar sesión en MySQL
+```
+mysql -u root -p
+```
+Acceder a `wordpress`
+```
+USE wordpress;
+```
+Resultado
+```
+Reading table information for completion of table and column names
+You can turn off this feature to get a quicker startup with -A
+
+Database changed
+```
+Listar las tablas de la base de datos
+```
+SHOW TABLES;
+```
+Resultado
+```
++-----------------------+
+| Tables_in_wordpress   |
++-----------------------+
+| wp_commentmeta        |
+| wp_comments           |
+| wp_links              |
+| wp_options            |
+| wp_postmeta           |
+| wp_posts              |
+| wp_term_relationships |
+| wp_term_taxonomy      |
+| wp_termmeta           |
+| wp_terms              |
+| wp_usermeta           |
+| wp_users              |
++-----------------------+
+12 rows in set (0.00 sec)
+```
+Salir de MySQL.
+```
+quit;
+```
+Ahora necesitamos configurar la `réplica` de la misma manera que hicimos con la base de datos fuente. Edita el fichero `/etc/mysql/my.cnf` y añade las siguientes líneas al bloque `[mysqld]`.
+```
+server-id = 2
+relay-log = /var/log/mysql/mysql-relay-bin.log
+log_bin = /var/log/mysql/mysql-bin.log
+binlog_do_db = wordpress
+```
+La nueva entrada, `relay-log`, es un conjunto de archivos de registro creados por una réplica durante la replicación. Tiene el mismo formato que el log binario, conteniendo un registro de eventos que afectan a los datos o a la estructura; por lo tanto, mysqlbinlog puede ser usado para mostrar su contenido.
+
+Reinicie MySQL.
+```
+systemctl restart mysql
+```
+
+El siguiente paso es habilitar la replicación desde el shell de MySQL. Inicie sesión en MySQL.
+```
+mysql -u root -p
+```
+
+El siguiente comando se utilizará para enlazar con el nodo `source` (MySQL1).
+
+   - CAMBIAR MASTER A MASTER_HOST=`'<master_ip>'`,MASTER_USER=`'<slave_user>'`, MASTER_PASSWORD=`'<password>'`, MASTER_LOG_FILE=`'<master_log>'`, MASTER_LOG_POS=`<master_log_position>`;
+
+Establece `MASTER_LOG_FILE` y `MASTER_LOG_POS` a los valores previamente guardados cuando se ejecutó `SHOW MASTER STATUS` en la base de datos fuente (`mysql-bin.000003` y `6941`). MASTER_HOST` será la dirección IP de MySQL1.
+
+En este ejemplo, los valores utilizados son:
+```
+MASTER_HOST = '10.10.12.7'
+MASTER_USER = 'root'
+MASTER_PASSWORD = 'mysqlpass'
+MASTER_LOG_FILE = 'mysql-bin.000003'
+MASTER_LOG_POS = 6941;
+```
+Cambio a la base de datos `source
+```
+CHANGE MASTER TO MASTER_HOST='10.10.12.7',MASTER_USER='root', MASTER_PASSWORD='mysqlpass',MASTER_LOG_FILE='mysql-bin.000001', MASTER_LOG_POS=6941;
+```
+Resultado
+```
+Consulta OK, 0 filas afectadas, 2 warnings (0.02 seg)
+```
+Inicia la réplica
+```
+START SLAVE;
+```
+Resultado
+```
+Consulta OK, 0 filas afectadas (0.00 seg)
+```
+Muestra los detalles de la réplica escribiendo el siguiente comando. (El \G reordena el texto para hacerlo más legible).
+
+Confirma que la réplica está activa con las filas `Slave_IO_Running` y `Slave_SQL_Running` establecidas en `yes`. También el `Read_Master_Log_Pos` será fijado al índice actual en la base de datos `source` (use SHOW MASTER STATUS; en MySQL1 para ver el valor actual).
+```
+SHOW SLAVE STATUS\G
+```
+Restultado
+```
+*************************** 1. row ***************************
+               Slave_IO_State: Waiting for master to send event
+                  Master_Host: 10.10.12.7
+                  Master_User: root
+                  Master_Port: 3306
+                Connect_Retry: 60
+              Master_Log_File: mysql-bin.000003
+          Read_Master_Log_Pos: 6941
+               Relay_Log_File: mysql-relay-bin.000002
+                Relay_Log_Pos: 320
+        Relay_Master_Log_File: mysql-bin.000003
+             Slave_IO_Running: Yes
+            Slave_SQL_Running: Yes
+              Replicate_Do_DB:
+          Replicate_Ignore_DB:
+           Replicate_Do_Table:
+       Replicate_Ignore_Table:
+      Replicate_Wild_Do_Table:
+  Replicate_Wild_Ignore_Table:
+                   Last_Errno: 0
+                   Last_Error:
+                 Skip_Counter: 0
+          Exec_Master_Log_Pos: 6941
+              Relay_Log_Space: 527
+              Until_Condition: None
+               Until_Log_File:
+                Until_Log_Pos: 0
+           Master_SSL_Allowed: No
+           Master_SSL_CA_File:
+           Master_SSL_CA_Path:
+              Master_SSL_Cert:
+            Master_SSL_Cipher:
+               Master_SSL_Key:
+        Seconds_Behind_Master: 0
+Master_SSL_Verify_Server_Cert: No
+                Last_IO_Errno: 0
+                Last_IO_Error:
+               Last_SQL_Errno: 0
+               Last_SQL_Error:
+  Replicate_Ignore_Server_Ids:
+             Master_Server_Id: 1
+                  Master_UUID: c33c0fc3-1f12-11e9-9cd7-061952205e31
+             Master_Info_File: /var/lib/mysql/master.info
+                    SQL_Delay: 0
+          SQL_Remaining_Delay: NULL
+      Slave_SQL_Running_State: Slave has read all relay log; waiting for more updates
+           Master_Retry_Count: 86400
+                  Master_Bind:
+      Last_IO_Error_Timestamp:
+     Last_SQL_Error_Timestamp:
+               Master_SSL_Crl:
+           Master_SSL_Crlpath:
+           Retrieved_Gtid_Set:
+            Executed_Gtid_Set:
+                Auto_Position: 0
+         Replicate_Rewrite_DB:
+                 Channel_Name:
+           Master_TLS_Version:
+1 row in set (0.00 sec)
+```
+En este punto, la configuración para la replicación de la base de datos MySQL está completa.
+
+**NOTA:**
+
+### Pruebe la replicación de datos en la réplica - MySQL2
+
+Todavía en el prompt `mysql>`, ejecutaremos una serie de consultas SQL.
+
+1. Acceder a la base de datos `wordpress`.
+```
+USE wordpress;
+```
+2. Ejecuta la siguiente consulta MySQL para obtener el número de entradas en la tabla `wp_posts`.
+```
+select count(*) from wp_posts;
+```
+Resultado
+```
+mysql> select count(*) from wp_posts;
++----------+
+| count(*) |
++----------+
+| 9 |
++----------+
+1 fila en el conjunto (0.01 seg)
+```
+3. Ejecute la siguiente consulta MySQL para obtener el número de entradas en la tabla `wp_comments`.
+```
+select count(*) from wp_comments;
+```
+Resultado
+```
+mysql> select count(*) from wp_comments;
++----------+
+| count(*) |
++----------+
+| 4 |
++----------+
+1 fila en el conjunto (0.00 seg)
+```
+4. Ve a WordPress y añade un nuevo post y un mensaje.
+5. Repite las consultas anteriores para validar las cantidades incrementadas.
+
+## Configurar HyperDB
+
+El plugin `HyperDB` sustituye a la clase estándar `wpdb` para que WordPress pueda escribir y leer desde servidores de bases de datos adicionales. El plugin drop-in soporta replicación de bases de datos, failover, balanceo de carga y particionado - todas herramientas para escalar WordPress.
+
+Usaremos HyperDB para determinar dónde enviar las actualizaciones (la base de datos `source`) y las peticiones de lectura (tanto la base de datos `source` como la base de datos `replica`).
+
+### Instalar el plugin HyperDB - AppServ1
+
+Conectarse al servidor `AppServ1` usando la dirección ip flotante reservada.
+```
+ssh root@169.61.244.83
+```
+**Parar PHP y Nginx
+```
+systemctl stop php7.2-fpm
+systemctl stop nginx
+```
+
+**Descargar HyperDB
+Descarga el archivo zip `HyperDB` de WordPress al directorio home de `AppServ1`.
+```
+cd ~
+wget https://downloads.wordpress.org/plugin/hyperdb.1.5.zip
+```
+Resultado
+```
+--2019-04-08 04:10:12--  https://downloads.wordpress.org/plugin/hyperdb.1.5.zip
+Resolving downloads.wordpress.org (downloads.wordpress.org)... 198.143.164.250
+Connecting to downloads.wordpress.org (downloads.wordpress.org)|198.143.164.250|:443... connected.
+HTTP request sent, awaiting response... 200 OK
+Length: 19958 (19K) [application/octet-stream]
+Saving to: ‘hyperdb.1.5.zip’
+
+hyperdb.1.5.zip                100%[===================================================>]  19.49K  --.-KB/s    in 0.04s
+
+2019-04-08 04:10:12 (513 KB/s) - ‘hyperdb.1.5.zip’ saved [19958/19958]
+```
+**Instalar zip/unzip**
+```
+apt-get -y install unzip
+```
+Si obtiene un error `groot`, edite el archivo `/boot/grub/menu.lst` y cambie el valor a `(hd0)`.
+
+Resultado
+```
+Reading package lists... Done
+Building dependency tree
+Reading state information... Done
+Suggested packages:
+  zip
+The following NEW packages will be installed:
+  unzip
+0 upgraded, 1 newly installed, 0 to remove and 116 not upgraded.
+Need to get 167 kB of archives.
+After this operation, 558 kB of additional disk space will be used.
+Get:1 http://mirrors.adn.networklayer.com/ubuntu bionic/main amd64 unzip amd64 6.0-21ubuntu1 [167 kB]
+Fetched 167 kB in 0s (456 kB/s)
+Selecting previously unselected package unzip.
+(Reading database ... 121369 files and directories currently installed.)
+Preparing to unpack .../unzip_6.0-21ubuntu1_amd64.deb ...
+Unpacking unzip (6.0-21ubuntu1) ...
+Processing triggers for mime-support (3.60ubuntu1) ...
+Setting up unzip (6.0-21ubuntu1) ...
+Processing triggers for man-db (2.8.3-2) ...
+```
+**Desarchivando `HyperDB`**
+```
+descomprimir hyperdb.1.5.zip
+```
+Resultado
+```
+Archive:  hyperdb.1.5.zip
+   creating: hyperdb/
+  inflating: hyperdb/db-config.php
+  inflating: hyperdb/db.php
+  inflating: hyperdb/readme.txt
+```
+**Configurar `HyperDB`**
+
+Copie el archivo de configuración de ejemplo `HyperDB` `db-config.php` a la carpeta de instalación de WordPress. HyperDB utiliza este archivo para especificar varios servidores. Uno como servidor `fuente` para las consultas de escritura y varias `réplicas` para las consultas de lectura.
+```
+cp ~/hyperdb/db-config.php /var/www/wordpress/db-config.php
+```
+Edita el archivo de configuración `HyperDB` en `/var/www/wordpress/db-config.php` y localiza las entradas con `$wpdb->add_database(array(`. Por ejemplo
+```
+$wpdb->add_database(array(
+        'host' => DB_HOST, // Si el puerto es distinto de 3306, usa host:port.
+        'usuario' => DB_USER,
+        'password' => DB_PASSWORD,
+        'name' => DB_NAME,
+));
+```
+La primera entrada `add_database` es para el servidor de base de datos `source` (`MySQL1`) y la segunda entrada define el servidor de base de datos `replica` (`MySQL2`) (la entrada replica puede ser identificada por `write' => 0`).
+
+Los valores para `DB_HOST`, `DB_USER`, etc. ya han sido definidos en el archivo de configuración de WordPress (`wp-config.php`). Además, tanto `source` como `replica` utilizan las mismas credenciales. El único valor que necesitamos actualizar en `db-config.php` es cambiar la variable host en la segunda entrada a `SLAVE_DB_HOST`.
+```
+$wpdb->add_database(array(
+        'host' => SLAVE_DB_HOST, // Si el puerto es distinto de 3306, usa host:port.
+        'usuario' => DB_USER,
+        'password' => DB_PASSWORD,
+        'name' => DB_NAME,
+        'write' => 0,
+        'read' => 1,
+        'dataset'  => 'global',
+        'timeout'  => 0.2,
+));
+```
+Tenga en cuenta que, dado que se define como una matriz, puede copiar este fragmento de código para tantas `réplicas` de bases de datos como desee configurar.
+
+Guarde los cambios.
+
+**Configurar WordPress
+
+Edita el archivo `/var/www/wordpress/wp-config.php` y la siguiente entrada para definir `MySQL2` como el host de `replicas`.
+```
+/** Nombre del host de réplica MySQL */
+define( 'SLAVE_DB_HOST', '10.10.12.5:3306' );
+```
+
+Guarde los cambios.
+
+**Habilita `HyperDB`**.
+
+Copie el plugin descomprimido `HyperDB` en `/var/www/wordpress/wp-content/`.
+- Instalando este archivo en este directorio habilitará `HyperDB`.
+- Al eliminar el archivo se desactivará `HyperDB`.
+```
+cp ~/hyperdb/db.php /var/www/wordpress/wp-content/
+```
+**Arrancar PHP y Nginx
+
+Reinicie la aplicación web para recoger la nueva configuración.
+```
+systemctl start php7.2-fpm
+systemctl start nginx
+```
+
+### Sólo AppServ2
+1. Desactivar PHP y Nginx en `web-server 1`.
+```
+systemctl stop php7.2-fpm
+systemctl stop nginx
+```
+2. Accede a WordPress en `web-server 2`.
+3. Instala el plugin de WordPress `Incorrect Datetime Bug Fix`.
+
+### Probar HyperDB
+
+Ahora que la configuración está completa, vamos a probar tanto la replicación MySQL como HyperDB.
+
+**Probar HyperDB**
+1. Bajar la base de datos `fuente` - `MySQL1`.
+```
+service mysql stop
+```
+2. Abre la página de WordPress en tu navegador usando la dirección pública del balanceador de carga.
+```
+http://8d3374f1.lb.appdomain.cloud/
+```
+3. Todas las actualizaciones realizadas anteriormente deben mostrar indicando que los datos se propagaron a la `réplica` y ahora está manejando todas las consultas.
+4. 4. Intente añadir un comentario. Como la `réplica` es de sólo lectura y la `fuente` está caída, aparecerá un error de publicación: __*ERROR: No se ha podido guardar el comentario. Por favor, inténtelo de nuevo más tarde.*__
+5. Intente acceder a la consola de administrador de WordPress (`/wp-admin`). Debería aparecer el error HTTP __*502 Bad Gateway*__.
+6. Abre la base de datos `source` - `database 1`.
+```
+service mysql start
+```
+
+En este punto deberías poder publicar comentarios y acceder a la consola de administrador de WordPress.
+
+## Añadir AppServ2 al entorno WordPress.
+
+Ahora introduciremos `web-server 2` en el entorno. Algunos pasos del proceso de instalación han sido resaltados sólo para `AppServ2`.
+
+**LEA PRIMERO TODAS LAS INSTRUCCIONES ANTES DE PROCEDER A LA INSTALACIÓN**.
+
+1. Instala y configura WordPress como se indica en [Instalando WordPress](https://github.com/ibm-cloud-architecture/tutorial-vpc-3tier-networking/WebApp.md#installing-wordpress)
+2. Durante la instalación de WordPress:
+   - Copie el contenido del archivo `/var/www/wordpress/wp-config.php` de `web-server 1` a `web-server 2`.
+   - Copie el contenido del archivo `/etc/nginx/sites-available/default` de `web-server 1` a `web-server 2`.
+3. **No pruebe la instalación de WordPress, continúe con la instalación de HyperDB.
+4. Instale y configure HyperDB como se indica en [Configurar HyperDB](https://github.com/ibm-cloud-architecture/tutorial-vpc-3tier-networking/WebApp.md#configure-hyperdb).
+   - Copie el contenido del archivo `/var/www/wordpress/db-config.php` de `web-server 1` a `web-server 2`.
+5. Instala el plugin de WordPress __*Incorrect Datetime Bug Fix*__ en `web-server 2`.
+   - 6. Desactivar `web-server 1`.
+   - Inicie sesión en WordPress como administrador (`web-server 2` debe estar arriba). Descargue y active el plugin.
+   - Active `web-server 1`.
+6. Opcionalmente, hacer algunas publicaciones de WordPress antes de traer `web-server 1`.
+7. Abre PHP y Nginx en `web-server 1`.
+```
+systemctl start php7.2-fpm
+systemctl start nginx
+```
+
+`web-server 1` y `web-server ` ya están listos.
+
+## Pruebe el equilibrador de carga.
+
+Una vez completada la instalación de WordPress en `web-server 2`, las comprobaciones de salud del balanceador de carga deberían pasar. Ambos servidores de aplicaciones deberían ser accesibles a través del balanceador de carga.
+
+**Nota**: Las comprobaciones de estado del equilibrador de carga pueden tardar un par de minutos en identificar que ambos servidores están operativos y en buen estado.
+
+Puede validar que el equilibrador de carga está enrutando a uno de los dos servidores con cualquiera de las dos opciones siguientes:
+
+### Opción de registro de Nginx
+
+Revise el registro de acceso de Nginx con el siguiente comando en ambos servidores de aplicaciones:
+```
+tail -f /var/log/nginx/access.log
+```
+Recargue el navegador un par de veces con la dirección pública del equilibrador de carga. Cada vez que recargue, se publicará una entrada en uno de los registros de los dos servidores de aplicaciones.
+
+### Opción Parar Servidor
+
+Aquí puede simplemente apagar uno de los servidores de aplicaciones y validar las rutas del Balanceador de Carga al servidor activo.
+
+Por ejemplo, valide que el balanceador de carga se dirija a `web-server 2` deteniendo `web-server 1`.
+
+**Detener `web-server 1`.
+```
+systemctl stop php7.2-fpm
+systemctl stop nginx
+```
+Recarga el navegador un par de veces con la dirección pública del balanceador de carga. Las peticiones se dirigirán a `web-server 2`.
+
+**Inicia `web-server 2`.**
+```
+systemctl stop php7.2-fpm
+systemctl stop nginx
+```
 
 ## PASO 3: Remover las IP flotanes
 
